@@ -37,12 +37,6 @@ pub extern "C" fn _start() -> ! {
         }
     }
 
-    // a pause function to allow the text to be displayed
-    unsafe {
-        for _ in 0..5000000 {
-        }
-    }
-
     loop {}
 }
 
