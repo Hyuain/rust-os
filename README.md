@@ -4,6 +4,8 @@ This project aims to build a simple operating system using rust, following the [
 
 ## S0: Freestanding Rust Binary
 
+> The code of S0 and S1 can be found in the branch `s1-simple_kernel`.
+
 ### Create a Cargo Project
 
 To create an OS kernel in Rust, we need to create an excutable that can be run without an underlying operating system. Such an excutable is often called **freestanding** or **bare-metal** excutable.
@@ -134,6 +136,8 @@ cargo build --target thumbv7em-none-eabihf
 Since the target system has no operating system, the linker does not try to link the C runtime and our build succeeds.
 
 ## S1: A Minimal Rust Kernel
+
+> The code of S0 and S1 can be found in the branch `s1-simple_kernel`.
 
 ### Booting Process
 
@@ -267,4 +271,60 @@ fn print_hello_world() {
 }
 ```
 
-The code can be reviewed in branch `s1-simple_kernel`.
+### Run the Kernel
+
+First we need to create a bootable disk image.
+
+1. Add `bootloader@0.9.23` dependency to the project. Make sure use the same version as the blog
+2. Add `bootimage` tool to link the kernel with the bootloader and create a bootable disk image
+3. Run the compiled kernel with QEMU
+
+Firstly add dependency in *Cargo.toml*:
+
+```toml
+# in Cargo.toml
+
+[dependencies]
+bootloader = "0.9.23"
+```
+
+Then run the following command **outside the cargo project** to install `bootimage`:
+
+```bash
+cargo install bootimage
+```
+
+Then add `llvm-tools-preview` component to make `bootimage` work:
+
+```bash
+rustup component add llvm-tools-preview
+```
+
+Now we can return to the cargo project and use `bootimage` to create a bootable disk image:
+
+```bash
+cargo bootimage
+```
+
+The disk image is created at *target/x86_64-blog_os/debug/bootimage-rust_os.bin*.
+
+To run the kernel, we can use the following command:
+
+```bash
+qemu-system-x86_64 -drive format=raw,file=target/x86_64-blog_os/debug/bootimage-rust_os.bin
+```
+
+To simplify the command, we can config cargo run in *.cargo/config.toml*:
+
+```toml
+# in .cargo/config.toml
+
+[target.'cfg(target_os = "none")']
+runner = "bootimage runner"
+```
+
+And then run the kernel with:
+
+```bash
+cargo run
+```
