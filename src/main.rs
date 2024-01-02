@@ -16,7 +16,7 @@ pub extern "C" fn _start() -> ! {
     for (i, &byte) in HELLO.iter().enumerate() {
         // to access and dereference raw pointer, code should be wrapped by `unsafe`
         unsafe {
-            // line width for qemu is 160
+            // line width for qemu is 80 cells (160 bytes)
             let line_width: isize = 160;
             // last visible line of qemu is 24
             // first line is invisible, second line is behind the navbar
@@ -31,7 +31,7 @@ pub extern "C" fn _start() -> ! {
             let char_offset = char_offset_within_line + line_offset;
             let color_offset = color_offset_within_line + line_offset;
 
-            // set value into addresses
+            // set value into addresses, the unit for offset is byte
             *vga_buffer.offset(char_offset) = byte;
             *vga_buffer.offset(color_offset) = 0xb;
         }
