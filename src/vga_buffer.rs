@@ -1,3 +1,5 @@
+use core::fmt;
+use core::fmt::Write;
 use volatile::Volatile;
 
 // u4 is enough, but Rust does not support u4
@@ -94,6 +96,13 @@ impl Writer {
     }
 }
 
+impl fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_string(s);
+        Ok(())
+    }
+}
+
 pub fn print_something() {
     let mut writer = Writer {
         column_position: 0,
@@ -103,5 +112,7 @@ pub fn print_something() {
 
     writer.write_byte(b'H');
     writer.write_string("ello ");
-    writer.write_string("Wörld!")
+    writer.write_string("Wörld!");
+    // need the `writer` has a `write_fmt` method, which is already implemented in `core::fmt::Write` trait
+    write!(writer, "The numbers are {} and {}", 42, 1.0 / 3.0).unwrap();
 }
