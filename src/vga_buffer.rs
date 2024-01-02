@@ -1,6 +1,7 @@
-
+use volatile::Volatile;
 
 // u4 is enough, but Rust does not support u4
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Color {
@@ -35,6 +36,7 @@ impl ColorCode {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone)]
 struct ScreenChar {
     ascii_character: u8,
     color_code: ColorCode,
@@ -45,7 +47,7 @@ const BUFFER_WIDTH: usize = 80;
 
 #[repr(transparent)]
 struct Buffer {
-    chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 pub struct Writer {
@@ -67,10 +69,10 @@ impl Writer {
                 let col = self.column_position;
 
                 let color_code = self.color_code;
-                self.buffer.chars[row][col] = ScreenChar {
+                self.buffer.chars[row][col].write(ScreenChar {
                     ascii_character: byte,
                     color_code,
-                };
+                });
                 self.column_position += 1;
             }
         }

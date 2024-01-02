@@ -5,8 +5,6 @@ use core::panic::PanicInfo;
 
 mod vga_buffer;
 
-static HELLO: &[u8] = b"Hello World!";
-
 #[no_mangle] // do not mangle the name of this function
 pub extern "C" fn _start() -> ! {
    vga_buffer::print_something();
