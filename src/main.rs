@@ -3,20 +3,19 @@
 
 use core::fmt::Write;
 use core::panic::PanicInfo;
-use crate::vga_buffer::WRITER;
 
 mod vga_buffer;
 
 #[no_mangle] // do not mangle the name of this function
 pub extern "C" fn _start() -> ! {
-    WRITER.lock().write_str("Hello again").unwrap();
-    write!(WRITER.lock(), ", some numbers: {} {}", 42, 1.337).unwrap();
-
+    println!("Hello World{}", "!");
+    panic!("This is a panic message");
     loop {}
 }
 
 /// This function is called on panic
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("{}", info);
     loop {}
 }
