@@ -7,6 +7,7 @@
 
 // use core::fmt::Write;
 use core::panic::PanicInfo;
+use x86_64::instructions::port::Port;
 
 mod vga_buffer;
 
@@ -37,11 +38,32 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
     for test in tests {
         test();
     }
+    exit_qemu(QemuExitCode::Success);
 }
 
 #[test_case]
 fn trivial_assertion() {
     print!("trivial assertion...");
-    assert_eq!(2, 1);
+    assert_eq!(1, 1);
     println!("[ok]");
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+// because iosize of the isa-debug-exit devices is specified as 4 bytes
+#[repr(u32)]
+pub enum QemuExitCode {
+    // the values is chosen casually as long as they do not clash with the default exit codes of QEMU
+    // for example, if we choose 0 as success, it will become (0 << 1) | 1 = 1 after transformation
+    // which is the default exit code when QEMU fails to run
+    Success = 0x10,
+    Failed = 0x11,
+}
+
+pub fn exit_qemu(exit_code: QemuExitCode) {
+    unsafe {
+        // port 0xf4 is the iobase of the isa-debug-exit device
+        // if `value` is written to its iobase, qemu exits with exit status `(value << 1) | 1`
+        let mut port = Port::new(0xf4);
+        port.write(exit_code as u32);
+    }
 }
