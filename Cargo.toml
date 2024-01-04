@@ -29,3 +29,4 @@ test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-display", "none"
 ]
 test-success-exit-code = 33  # map success code ((0x10 << 1) | 1) to qemu default success code 0
+test-timeout = 60  # in seconds, default 300
