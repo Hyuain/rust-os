@@ -1,16 +1,13 @@
 #![no_std]   // do not link the Rust std library
 #![no_main]  // disable all Rust-level entry points
 #![feature(custom_test_frameworks)]   // replace the default test framework which relies on std lib
-#![test_runner(crate::test_runner)]
+#![test_runner(rust_os::test_runner)]
 // the custom test framework feature generates a main function that calls test_runner, which is ignored by `![no_main]`
 #![reexport_test_harness_main = "test_main"]
 
-// use core::fmt::Write;
 use core::panic::PanicInfo;
-use x86_64::instructions::port::Port;
 
-mod vga_buffer;
-mod serial;
+use rust_os::println;
 
 #[no_mangle] // do not mangle the name of this function
 pub extern "C" fn _start() -> ! {
@@ -35,57 +32,5 @@ fn panic(info: &PanicInfo) -> ! {
 #[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    serial_println!("[failed]\n");
-    serial_println!("Error: {}\n", info);
-    exit_qemu(QemuExitCode::Failed);
-    loop {}
-}
-
-// include this function only for tests
-#[cfg(test)]
-// &[&dyn Fn()] a slice of trait object references of the Fn() trait  -> the slice will contains references to function marked as test_case
-// It is a list of references to types that can be called like a function
-pub fn test_runner(tests: &[&dyn Testable]) {
-    serial_println!("Running {} tests", tests.len());
-    for test in tests {
-        test.run();
-    }
-    exit_qemu(QemuExitCode::Success);
-}
-
-pub trait Testable {
-    fn run(&self) -> ();
-}
-
-impl<T> Testable for T where T: Fn() {
-    fn run(&self) -> () {
-        serial_print!("{}...\t", core::any::type_name::<T>());
-        self();
-        serial_println!("[ok]");
-    }
-}
-
-#[test_case]
-fn trivial_assertion() {
-    assert_eq!(1, 1);
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-// because iosize of the isa-debug-exit devices is specified as 4 bytes
-#[repr(u32)]
-pub enum QemuExitCode {
-    // the values is chosen casually as long as they do not clash with the default exit codes of QEMU
-    // for example, if we choose 0 as success, it will become (0 << 1) | 1 = 1 after transformation
-    // which is the default exit code when QEMU fails to run
-    Success = 0x10,
-    Failed = 0x11,
-}
-
-pub fn exit_qemu(exit_code: QemuExitCode) {
-    unsafe {
-        // port 0xf4 is the iobase of the isa-debug-exit device
-        // if `value` is written to its iobase, qemu exits with exit status `(value << 1) | 1`
-        let mut port = Port::new(0xf4);
-        port.write(exit_code as u32);
-    }
+    rust_os::test_panic_handler(info)
 }
