@@ -332,3 +332,142 @@ And then run the kernel with:
 ```bash
 cargo run
 ```
+
+## S2: VGA Text Mode
+
+The code of this section can be found in branch `s2-vga_buffer`
+
+The text buffer is a two-dimensional array with typically 25 rows and 80 columns. Content in the specified address is mapped to the VGA device (not mapped to RAM) and rendered to screen directly.
+
+The array entry consists of two bytes:
+
+The first byte represents characters that can be printed in the ASCII encoding (It actually is a character set named code page 437 with some slight modifications).
+
+The second byte represents the color:
+
+```text
+from high to low:
+1 bit for blink + 3 bits background color + 4 bits foreground color (include 1 bit for bright)
+```
+
+In the implementation, a 4 bit `Color` enum, a 8 bit `ColorCode` enum, a 8 bit `ascii_character` data and a 16 bit `ScreenChar` is used:
+
+```rust
+// color is to represent foreground or background color
+#[repr(u8)]
+pub enum Color {
+    Black = 0,
+    Blue = 1,
+   // ...
+}
+
+// color code is the combination of foreground color and background color
+#[repr(transparent)]
+struct ColorCode(u8);
+
+impl ColorCode {
+   fn new(foreground: Color, background: Color) -> ColorCode {
+      ColorCode((background as u8) << 4 | (foreground as u8))
+   }
+}
+
+// use `repr(C)` to ensure that its fields are laid out in memory exactly like they would be in a C struct
+// like `|ascii_character (1 byte) | color_code (1 byte)|`
+// the attribute tell Rust do not optimize the layout, because the memory is directly mapped to the VGA Buffer,
+// which need exactly correct data mapping
+#[repr(C)]
+struct ScreenChar {
+   ascii_character: u8,
+   color_code: ColorCode,
+}
+
+const BUFFER_HEIGHT: usize = 25;
+const BUFFER_WIDTH: usize = 80;
+
+// the struct only has one field
+// and we want the struct is an exact and transparent representation of its underlying field
+// its a two-dimensional array, and its mapped by row in memory
+// the layout is exactly the same with the way we manipulated directly in the previous `print_hello_world` function
+#[repr(transparent)]
+struct Buffer {
+   chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
+}
+```
+
+And then a `Writer` struct is used for abstraction:
+
+```rust
+pub struct Writer {
+    column_position: usize,
+    color_code: ColorCode,
+    buffer: &'static mut Buffer,
+}
+
+impl Writer {
+   pub fn write_byte(&mut self, byte:u8) {
+      // ...
+      self.buffer.chars[row][col] = ScreenChar {
+         ascii_character: byte,
+         color_code: self.color_code,
+      };
+      self.column_position += 1;
+   }
+   
+   pub fn write_string(&mut self, s: &str) {
+      for byte in s.bytes() {
+         match byte {
+            0x20..=0x7e | b'\n' => self.write_byte(byte),
+            _ => self.write_byte(0xfe),
+         }
+      }
+   }
+   
+   fn new_line(&mut self) {
+      
+   }
+}
+```
+
+To use the struct, we can simply create a instance, and call its methods:
+
+```rust
+pub fn print_something() {
+   let mut writer = Writer {
+      column_position: 0,
+      color_code: ColorCode::new(Color::Yello, Color::Black),
+      // here we cast the integer 0x8000 as a raw pointer using (as *mut Buffer)
+      // then use * to dereference, then got a Buffer
+      // and then use &mut to borrow it, got a mutable pointer
+      // so that in the later section we can use it as a typical Rust reference (&mut Buffer)
+      buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+   };
+   writer.write_byte(b'H');
+   writer.write_string("ello ");
+   writer.write_string("Wörld!");
+}
+```
+
+Here we just write to the `Buffer` and never read from it again, the compiler does not know we really access VGA buffer memory, so it might decide that these writes are unnecessary and can be omiited.
+
+To avoid those erroneous optimization, we need to specify these writes as [volatile](https://en.wikipedia.org/wiki/Volatile_(computer_programming)). A `volatile` crate is used to wrap the struct.
+
+NOTE to specify `volatile` version as `0.2.6` to make sure it compatible with this project.
+
+```rust
+use volatile::Volatile;
+
+struct Buffer {
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
+}
+
+impl Writer {
+   pub fn write_byte(&mut self, byte: u8) {
+      // ..
+      self.buffer.chars[row][col].write(ScreenChar {
+         ascii_character: byte,
+         color_code,
+      });
+   }
+}
+```
+
