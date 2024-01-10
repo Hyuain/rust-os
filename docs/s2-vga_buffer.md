@@ -17,7 +17,7 @@ from high to low:
 1 bit for blink + 3 bits background color + 4 bits foreground color (include 1 bit for bright)
 ```
 
-In the implementation, a 4 bit `Color` enum, a 8 bit `ColorCode` enum, a 8 bit `ascii_character` data and a 16 bit `ScreenChar` is used:
+In the implementation, a 4 bit `Color` enum, an 8 bit `ColorCode` enum, an 8 bit `ascii_character` data and a 16 bit `ScreenChar` is used:
 
 ```rust
 // color is to represent foreground or background color
@@ -114,7 +114,7 @@ impl Writer {
 }
 ```
 
-To use the struct, we can simply create a instance, and call its methods:
+To use the struct, we can simply create an instance, and call its methods:
 
 ```rust
 pub fn print_something() {
@@ -248,4 +248,63 @@ The standard library provides `Mutex`, but we can not use it here since we even 
 
 We can use a simple spinlock to add safe interior mutability.
 
-Spinlock is a lock that causes a thread trying to acquire it to simply wait in a loop ("spin") while repeatedly checking whether the lock is available. 
+> Spinlock is a lock that causes a thread trying to acquire it to simply wait in a loop ("spin") while repeatedly checking whether the lock is available. An overview of how a spinlock works:
+> 
+> 1. A thread that wants to access shared resource tries to acquire the spin lock
+> 2. If the lock is **available** (not currently held by another thread), the thread acquires the lock and proceeds to access the shared resource
+> 3. If the lock is **unavailable**, **the thread enter a busy-wait loop**, repeatedly checking if the lock has been released
+> 4. Once the lock is released by the owning thread, another thread can acquire it and access the shared resource
+
+Add the `spin` dependency into _Cargo.toml_:
+
+```toml
+[dependencies]
+spin = "0.9.8"
+```
+
+And then use `spin::Mutex` to wrap the instance:
+
+```rust
+lazy_static! {
+    pub static ref WRITER: spin::Mutex<Writer> = Mutex::new(Writer {
+        // ...
+    });
+}
+```
+
+Now a global instance `WRITER` can be used to print content to the vga buffer:
+
+```rust
+pub fn print_something() {
+    write!(vga_buffer::WRITER.lock(), "Then number are {} and {}", 42, 1.0/3.0).unwrap();
+}
+```
+
+## A println Macro
+
+Just copy the source code of `println!` and `print!` macros, but use our own `_print` method.
+
+```rust
+// in src/vga_buffer.rs
+
+#[macro_export]
+macro_rules! print {
+    // use $crate prefix to let users do not need to include _print manually when use in other places
+    ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! println {
+    // use $crate and don't need to import `print!` when we only want to use `println!`
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+    use core::fmt::Write;
+    WRITER.lock().write_fmt(args).unwrap();
+}
+```
+
+`[macro_export]` is used to make them available everywhere in our crate. So we need to add `use create::println` instead of `use create::vga_buffer::println` when we want to use them in other files. And in `main.rs`, we don't need to add `use create::println`, because it has already been included in the root.
