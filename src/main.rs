@@ -1,13 +1,13 @@
-#![no_std]   // do not link the Rust std library
-#![no_main]  // disable all Rust-level entry points
-#![feature(custom_test_frameworks)]   // replace the default test framework which relies on std lib
+#![no_std] // do not link the Rust std library
+#![no_main] // disable all Rust-level entry points
+#![feature(custom_test_frameworks)] // replace the default test framework which relies on std lib
 #![test_runner(rust_os::test_runner)]
 // the custom test framework feature generates a main function that calls test_runner, which is ignored by `![no_main]`
 #![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
 
-use rust_os::println;
+use rust_os::{print, println};
 
 #[no_mangle] // do not mangle the name of this function
 pub extern "C" fn _start() -> ! {
@@ -28,7 +28,10 @@ pub extern "C" fn _start() -> ! {
     test_main();
 
     println!("I did not crash!");
-    loop {}
+    loop {
+        for _ in 0..10000 {}
+        print!("-");
+    }
 }
 
 /// This function is called on panic

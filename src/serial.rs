@@ -1,8 +1,9 @@
 use core::fmt;
 use core::fmt::Write;
-use uart_16550::SerialPort;
-use spin::Mutex;
 use lazy_static::lazy_static;
+use spin::Mutex;
+use uart_16550::SerialPort;
+use x86_64::instructions::interrupts;
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
@@ -35,5 +36,11 @@ macro_rules! serial_println {
 }
 
 pub fn _print(args: fmt::Arguments) {
-    SERIAL1.lock().write_fmt(args).expect("Print to serial failed");
+    // avoid deadlocks
+    interrupts::without_interrupts(|| {
+        SERIAL1
+            .lock()
+            .write_fmt(args)
+            .expect("Print to serial failed");
+    });
 }

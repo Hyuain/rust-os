@@ -3,6 +3,7 @@ use core::fmt::Write;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
+use x86_64::instructions::interrupts;
 
 // u4 is enough, but Rust does not support u4
 #[allow(dead_code)]
@@ -150,7 +151,11 @@ macro_rules! println {
 // hide it from the generated documentation, because it is a private implementation detail
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    WRITER.lock().write_fmt(args).unwrap();
+    // ensure no interrupts can occur as long as the Mutex is locked
+    // to avoid deadlocks (because the interrupt handler may call the function and try to acquire the lock)
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 #[test_case]
