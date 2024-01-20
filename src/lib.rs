@@ -26,7 +26,7 @@ impl<T> Testable for T where T: Fn() {
 }
 
 // include this function only for tests
-// &[&dyn Testable] a slice of trait object references of the Testable trait  -> the slice will contains references to function marked as test_case
+// &[&dyn Testable] a slice of trait object references of the Testable trait -> the slice will contains references to function marked as test_case
 // because the trick implementation of Testable, any type that can be called like a function (i.e., implements the Fn() trait) also automatically implements the Testable trait
 // It is a list of references to types that can be called like a function
 pub fn test_runner(tests: &[&dyn Testable]) {
