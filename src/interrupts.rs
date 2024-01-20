@@ -45,6 +45,7 @@ extern "x86-interrupt" fn double_fault_handler(
 
 // Hardware Interrupts
 
+// 32-47 is chosen to avoid 32 exception slots already occupied
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
