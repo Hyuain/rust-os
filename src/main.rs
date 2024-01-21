@@ -6,6 +6,7 @@
 #![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
+use x86_64::registers::control::Cr3;
 
 use rust_os::{print, println};
 
@@ -15,9 +16,11 @@ pub extern "C" fn _start() -> ! {
 
     rust_os::init();
 
-    // unsafe {
-    //     *(0xdeadbeef as *mut u8) = 42;
-    // };
+    let (level_4_page_table, _) = Cr3::read();
+    println!(
+        "Level 4 page table at: {:?}",
+        level_4_page_table.start_address()
+    );
 
     // invoke a breakpoint exception
     // x86_64::instructions::interrupts::int3();
