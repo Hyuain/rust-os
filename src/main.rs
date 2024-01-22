@@ -8,11 +8,10 @@
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::registers::control::Cr3;
-use x86_64::structures::paging::PageTable;
+use x86_64::structures::paging::{PageTable, Translate};
 use x86_64::VirtAddr;
 
-use rust_os::memory::{active_level_4_table, translate_addr};
-use rust_os::{print, println};
+use rust_os::{memory, print, println};
 
 entry_point!(kernel_main);
 
@@ -22,6 +21,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     rust_os::init();
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let mapper = unsafe { memory::init(phys_mem_offset) };
 
     let addresses = [
         // the identity-mapped vga buffer page
@@ -36,7 +36,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     for &address in &addresses {
         let virt = VirtAddr::new(address);
-        let phys = unsafe { translate_addr(virt, phys_mem_offset) };
+        let phys = mapper.translate_addr(virt);
         println!("{:?} -> {:?}", virt, phys);
     }
 
