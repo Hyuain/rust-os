@@ -4,6 +4,7 @@
 #![feature(abi_x86_interrupt)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(const_mut_refs)]
 
 #[cfg(test)]
 use bootloader::{entry_point, BootInfo};
